@@ -1,0 +1,138 @@
+#!/bin/bash
+
+CONFIG_DIR="src/configs"
+LOG_DIR="logs"
+XMRIG="./xmrig/build/xmrig"
+
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$LOG_DIR"
+
+show_help() {
+  dialog --msgbox "CryptoMiner com Interface Dialog\n\nUse o menu principal para navegar pelas funções." 10 50
+}
+
+add_or_edit_crypto() {
+  local crypto=$1
+
+  if [ -z "$crypto" ]; then
+    crypto=$(dialog --inputbox "Símbolo da crypto (ex: BTC):" 8 40 3>&1 1>&2 2>&3)
+    [ -z "$crypto" ] && return
+  fi
+
+  wallet=$(dialog --inputbox "Endereço da carteira da crypto:" 8 60 3>&1 1>&2 2>&3)
+  [ -z "$wallet" ] && return
+
+  pool=$(dialog --inputbox "Endereço da pool (padrão: rx.unmineable.com:3333):" 8 60 3>&1 1>&2 2>&3)
+  [ -z "$pool" ] && pool="rx.unmineable.com:3333"
+
+  CONFIG_FILE="$CONFIG_DIR/${crypto}.json"
+  cat <<EOF > "$CONFIG_FILE"
+{
+  "crypto": "$crypto",
+  "wallet": "$wallet",
+  "pool": "$pool"
+}
+EOF
+
+  dialog --msgbox "✅ Configuração salva em $CONFIG_FILE" 7 50
+}
+
+list_cryptos_dialog() {
+  if [ ! -d "$CONFIG_DIR" ] || [ -z "$(ls -A "$CONFIG_DIR"/*.json 2>/dev/null)" ]; then
+    dialog --msgbox "Nenhuma crypto cadastrada." 6 40
+    return 1
+  fi
+  return 0
+}
+
+delete_crypto() {
+  list_cryptos_dialog || return
+
+  options=()
+  for file in "$CONFIG_DIR"/*.json; do
+    name=$(basename "$file" .json)
+    options+=("$name" "")
+  done
+
+  choice=$(dialog --menu "Escolha uma crypto para deletar:" 15 50 5 "${options[@]}" 3>&1 1>&2 2>&3)
+  [ -z "$choice" ] && return
+
+  rm "$CONFIG_DIR/$choice.json"
+  dialog --msgbox "🗑️ Crypto '$choice' removida." 6 40
+}
+
+edit_crypto() {
+  list_cryptos_dialog || return
+
+  options=()
+  for file in "$CONFIG_DIR"/*.json; do
+    name=$(basename "$file" .json)
+    options+=("$name" "")
+  done
+
+  choice=$(dialog --menu "Escolha uma crypto para editar:" 15 50 5 "${options[@]}" 3>&1 1>&2 2>&3)
+  [ -z "$choice" ] && return
+
+  add_or_edit_crypto "$choice"
+}
+
+mine_crypto() {
+  list_cryptos_dialog || return
+
+  options=()
+  for file in "$CONFIG_DIR"/*.json; do
+    name=$(basename "$file" .json)
+    options+=("$name" "")
+  done
+
+  choice=$(dialog --menu "Escolha uma crypto para minerar:" 15 50 5 "${options[@]}" 3>&1 1>&2 2>&3)
+  [ -z "$choice" ] && return
+
+  file="$CONFIG_DIR/$choice.json"
+  crypto=$(jq -r .crypto "$file")
+  wallet=$(jq -r .wallet "$file")
+  pool=$(jq -r .pool "$file")
+
+  dialog --yesno "Deseja salvar o log da mineração de $crypto?" 7 50
+  save_log=$?
+
+  clear
+  echo "⛏️ Iniciando mineração de $crypto..."
+  sleep 1
+
+  if [ "$save_log" -eq 0 ]; then
+    timestamp=$(date '+%Y%m%d_%H%M%S')
+    logfile="$LOG_DIR/miner_${crypto}_${timestamp}.log"
+    echo "📝 Salvando log em: $logfile"
+    exec "$XMRIG" -o "$pool" -u "$crypto:$wallet.Worker" -p x -k -a rx/0 | tee "$logfile"
+  else
+    exec "$XMRIG" -o "$pool" -u "$crypto:$wallet.Worker" -p x -k -a rx/0
+  fi
+}
+
+main_menu() {
+  while true; do
+    option=$(dialog --clear --backtitle "CryptoMiner" \
+      --title "Menu Principal" \
+      --menu "Escolha uma opção:" 15 60 6 \
+      1 "Adicionar nova crypto" \
+      2 "Editar crypto existente" \
+      3 "Remover crypto" \
+      4 "Minerar" \
+      5 "Ajuda" \
+      6 "Sair" \
+      3>&1 1>&2 2>&3)
+
+    case $option in
+      1) add_or_edit_crypto ;;
+      2) edit_crypto ;;
+      3) delete_crypto ;;
+      4) mine_crypto ;;
+      5) show_help ;;
+      6) clear; exit 0 ;;
+      *) break ;;
+    esac
+  done
+}
+
+main_menu

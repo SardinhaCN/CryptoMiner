@@ -1,0 +1,130 @@
+#!/bin/bash
+
+CONFIG_DIR="src/configs"
+LOG_DIR="logs"
+XMRIG="./xmrig/build/xmrig"
+
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$LOG_DIR"
+
+show_help() {
+  echo -e "\e[1;37m┌──────────────────────────────────────────┐"
+  echo -e "│          🚀 \e[1;36mCryptoMiner CLI Help\e[0m           │"
+  echo -e "\e[1;37m└──────────────────────────────────────────┘\e[0m"
+
+  echo -e "\e[1;33mUso:\e[0m"
+  echo -e "  \e[1;32m./cryptominer --add\e[0m        ➜ Adiciona nova crypto"
+  echo -e "  \e[1;32m./cryptominer --edit\e[0m       ➜ Edita uma crypto existente"
+  echo -e "  \e[1;32m./cryptominer --delete\e[0m     ➜ Remove uma crypto"
+  echo -e "  \e[1;32m./cryptominer --mine\e[0m       ➜ Seleciona e minera uma crypto"
+  echo -e "  \e[1;32m./cryptominer --mine --log\e[0m ➜ Minera e salva log automaticamente"
+  echo -e "  \e[1;32m./cryptominer --list\e[0m       ➜ Lista todas as cryptos salvas"
+  echo -e "  \e[1;32m./cryptominer --help\e[0m       ➜ Mostra esta ajuda"
+  echo -e "  \e[1;32m./cryptominer --dialog\e[0m        ➜ Interface com dialog (versão alternativa)"
+
+  echo -e "\n\e[1;34mExemplo:\e[0m"
+  echo -e "  \e[3m./cryptominer --mine --log\e[0m"
+
+  echo -e "\n\e[1;30m📁 Configurações salvas em: \e[0m\e[1;37m$CONFIG_DIR\e[0m"
+  echo -e "\e[1;30m📝 Logs da mineração:         \e[0m\e[1;37m$LOG_DIR\e[0m"
+  echo -e "\e[1;30m⚙️  Minerador usado:           \e[0m\e[1;37m$XMRIG\e[0m"
+  echo ""
+  exit 0
+}
+
+add_or_edit_crypto() {
+  local crypto=$1
+  if [ -z "$crypto" ]; then
+    read -p "Símbolo da crypto (ex: BTC): " crypto
+  fi
+  read -p "Carteira: " wallet
+  read -p "Endereço da pool [rx.unmineable.com:3333]: " pool
+  [ -z "$pool" ] && pool="rx.unmineable.com:3333"
+
+  CONFIG_FILE="$CONFIG_DIR/${crypto}.json"
+
+  cat <<EOF > "$CONFIG_FILE"
+{
+  "crypto": "$crypto",
+  "wallet": "$wallet",
+  "pool": "$pool"
+}
+EOF
+
+  echo "✅ Configuração salva: $CONFIG_FILE"
+}
+
+delete_crypto() {
+  list_cryptos
+  echo
+  read -p "Digite o nome da crypto a remover (ex: BTC): " crypto
+  file="$CONFIG_DIR/$crypto.json"
+  if [ -f "$file" ]; then
+    rm "$file"
+    echo "🗑️ Removido: $file"
+  else
+    echo "❌ Não encontrado: $file"
+  fi
+}
+
+list_cryptos() {
+  echo "📄 Cryptos salvas:"
+  for file in "$CONFIG_DIR"/*.json; do
+    [ -f "$file" ] || continue
+    name=$(basename "$file" .json)
+    echo "- $name"
+  done
+}
+
+mine_crypto() {
+  echo "💡 Cryptos disponíveis:"
+  files=("$CONFIG_DIR"/*.json)
+  select file in "${files[@]}"; do
+    if [ -n "$file" ]; then
+      crypto=$(jq -r .crypto "$file")
+      wallet=$(jq -r .wallet "$file")
+      pool=$(jq -r .pool "$file")
+
+      echo "⛏️ Iniciando mineração de $crypto..."
+      sleep 1
+
+      if [[ "$1" == "--log" ]]; then
+        timestamp=$(date '+%Y%m%d_%H%M%S')
+        logfile="$LOG_DIR/miner_${crypto}_${timestamp}.log"
+        echo "📝 Log em: $logfile"
+        exec "$XMRIG" -o "$pool" -u "$crypto:$wallet.Worker" -p x -k -a rx/0 | tee "$logfile"
+      else
+        exec "$XMRIG" -o "$pool" -u "$crypto:$wallet.Worker" -p x -k -a rx/0
+      fi
+    else
+      echo "❌ Seleção inválida"
+      break
+    fi
+  done
+}
+
+# 🎯 Roteador de comandos
+case "$1" in
+  --add) add_or_edit_crypto ;;
+  --edit)
+    list_cryptos
+    echo
+    read -p "Digite o nome da crypto a editar: " crypto
+    if [ -f "$CONFIG_DIR/$crypto.json" ]; then
+      add_or_edit_crypto "$crypto"
+    else
+      echo "❌ Crypto '$crypto' não encontrada."
+    fi
+    ;;
+  --delete) delete_crypto ;;
+  --list) list_cryptos ;;
+  --dialog) ./cryptominerDialog ;;
+  --mine)
+    if [ "$2" == "--log" ]; then
+      mine_crypto --log
+    else
+      mine_crypto
+    fi
+    ;;
+  --help|-h|*) show_help ;;
+esac
