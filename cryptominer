@@ -36,6 +36,8 @@ show_help() {
 setup() {
 apt install git build-essential cmake -y
 tar -xzvf xmrig.tar.gz
+clear
+./cryptominer
 }
 
 add_or_edit_crypto() {
