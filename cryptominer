@@ -13,6 +13,7 @@ show_help() {
   echo -e "\e[1;37m└──────────────────────────────────────────┘\e[0m"
 
   echo -e "\e[1;33mUso:\e[0m"
+  echo -e "  \e[1;32m./cryptominer --setup\e[0m        ➜ instalar e configurar! (Recomendo usar primeiro)"
   echo -e "  \e[1;32m./cryptominer --add\e[0m        ➜ Adiciona nova crypto"
   echo -e "  \e[1;32m./cryptominer --edit\e[0m       ➜ Edita uma crypto existente"
   echo -e "  \e[1;32m./cryptominer --delete\e[0m     ➜ Remove uma crypto"
@@ -30,6 +31,11 @@ show_help() {
   echo -e "\e[1;30m⚙️  Minerador usado:           \e[0m\e[1;37m$XMRIG\e[0m"
   echo ""
   exit 0
+}
+
+setup() {
+apt install git build-essential cmake -y
+tar -xzvf xmrig.tar.gz
 }
 
 add_or_edit_crypto() {
@@ -105,6 +111,7 @@ mine_crypto() {
 
 # 🎯 Roteador de comandos
 case "$1" in
+  --setup) setup ;;
   --add) add_or_edit_crypto ;;
   --edit)
     list_cryptos
