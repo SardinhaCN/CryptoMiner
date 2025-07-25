@@ -33,13 +33,6 @@ show_help() {
   exit 0
 }
 
-setup() {
-apt install git build-essential cmake -y
-tar -xzvf xmrig.tar.gz
-clear
-./cryptominer
-}
-
 add_or_edit_crypto() {
   local crypto=$1
   if [ -z "$crypto" ]; then
@@ -113,7 +106,6 @@ mine_crypto() {
 
 # 🎯 Roteador de comandos
 case "$1" in
-  --setup) setup ;;
   --add) add_or_edit_crypto ;;
   --edit)
     list_cryptos
