@@ -1,4 +1,4 @@
-# 🧱 CryptoMiner
+# 🧱 CryptoMiner - só para o CasaOS | Em breve para o Termux!
 
 **Versão 0.0.1**
 
