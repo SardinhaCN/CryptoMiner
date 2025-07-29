@@ -40,6 +40,7 @@ O postinst cuida do download e compilação do XMRig automaticamente.
 ```bash
 git clone https://github.com/SardinhaCN/CryptoMiner.git
 cd CryptoMiner
+sudo bash install_xmrig.sh
 bash cryptominer
 ```
 
